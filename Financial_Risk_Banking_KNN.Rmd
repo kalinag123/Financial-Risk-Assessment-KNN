@@ -1,0 +1,546 @@
+---
+title: "Project 1: Determining Financial Risk of Stark Industries Banking Clients"
+author: "Cam Nguyen, Kalina Gavrilova, Lauren Louie"
+date: "2022-12-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Problem Description 
+
+  Stark Industries is a new banking company that has hired our team to create a machine learning algorithm that can successfully evaluate the risk-level of their potential clients based on data from their existing clients, and whether those existing clients were able to repay their loans to Stark Industries or not. 
+
+
+# Objective 
+
+  Our Objective is to prepare two different KNN models that can be used to predict the risk-level of a set of new clients based on their other data. Then, comparing the accuracy (including the sensitivity and specificity) of the two models to select the best one and use it to generate a prediction from a new set of client data. 
+
+# Data Description 
+
+  The data provided to us included 66 possible predictors for whether a client would be able to repay their loan or not- some of these were more explicit financial indicators, like the client's income or the material amount of the loan, while others were more indirect, like the number of dependents the client had, how old the client was, or whether they could be reached by the bank via telephone call. The target variable in this data set was represented as a categorical variable that either had a value of 0 (the client was not high risk) or 1 (the client was high-risk). There were 30,000 total observations in the data set. 
+
+# Data Preperation 
+
+```{r, echo=TRUE}
+
+# Loading Libraries 
+
+library(caret)
+#install.packages("janitor", dependencies = TRUE)
+library(janitor)
+library(ROSE)
+
+# Loading Data 
+
+credit <- read.csv("credit_fa2022_8.csv", header = TRUE)
+colnames(credit)
+
+
+```
+
+# Model 1
+
+```{r, echo=TRUE}
+
+# Removing Unnecessary Variables and Null Values  
+credit_m1 <- credit[ , -c(1,2, 5, 11, 13, 15, 20:22, 23:25, 27:28, 31:68)]
+
+credit_m1 <- credit_m1[complete.cases(credit_m1),]
+
+# Factorizing Categorical Variables
+
+# colnames(credit_m1)
+# str(credit_m1)
+credit_m1[, c(1:4, 9:11, 14:15)] <- lapply(credit_m1[, c(1:4, 9:11, 14:15)], as.factor)
+
+
+# Training/Validation Split 
+
+set.seed(666)
+
+train_index_m1 <- sample(1:nrow(credit_m1), 0.6 * nrow(credit_m1))
+valid_index_m1 <- setdiff(1:nrow(credit_m1), train_index_m1)
+
+train_m1 <- credit_m1[train_index_m1, ]
+valid_m1 <- credit_m1[valid_index_m1, ]
+
+# nrow(train_m1)
+# nrow(valid_m1)
+
+# str(train_m1)
+# str(valid_m1)
+
+# Defining New Customers 
+
+new_custs <- read.csv("credit_test_fa2022_8.csv", header = TRUE)
+# colnames(new_custs)
+
+new_custs_m1 <- new_custs[ , -c(1, 2, 4, 10, 12, 14, 19:20, 21:24, 26:27, 30:67)]
+# str(new_custs_m1)
+# colnames(new_custs_m1)
+
+new_custs_m1[, c(1:3, 8:10, 13:14)] <- lapply(new_custs_m1[, c(1:3, 8:10, 13:14)], as.factor)
+# str(new_custs_m1)
+
+# Normalising Numerical Variables 
+train_norm_m1 <- train_m1 
+valid_norm_m1 <- valid_m1
+
+# str(train_norm_m1) 
+# colnames(train_norm_m1)
+# str(valid_norm_m1) 
+# colnames(valid_norm_m1)
+
+norm_values_m1 <- preProcess(train_m1[, c(6:8, 12:13)], method = c("center",
+"scale"))
+
+
+# Then normalise the training and validation sets.
+
+train_norm_m1[, c(6:8, 12:13)] <- predict(norm_values_m1, train_m1[, c(6:8, 12:13)])
+
+valid_norm_m1[, c(6:8, 12:13)] <- predict(norm_values_m1, valid_m1[, c(6:8, 12:13)])
+
+# Predicting Normalised Values for the New Record 
+new_custs_norm_m1 <- predict(norm_values_m1, new_custs_m1) 
+new_custs_norm_m1
+compare_df_cols(valid_m1, valid_norm_m1, train_m1, train_norm_m1)
+
+# Train k = 3
+
+knn_model_k3_m1 <- caret::knn3(TARGET ~ ., data = train_norm_m1, k =
+3) 
+knn_model_k3_m1
+
+# Predict training set
+
+knn_pred_k3_train_m1 <- predict(knn_model_k3_m1, newdata = train_norm_m1[,
+-c(1)], type = "class") 
+# head(knn_pred_k3_train_m1)
+
+# Evaluate
+
+confusionMatrix(knn_pred_k3_train_m1, as.factor(train_norm_m1[, 1]), positive
+= "1")
+
+# Predict validation set
+
+knn_pred_k3_valid_m1 <- predict(knn_model_k3_m1, newdata = valid_norm_m1[,
+-c(1)], type = "class") 
+# head(knn_pred_k3_valid_m1)
+
+# Evaluate
+
+confusionMatrix(knn_pred_k3_valid_m1, as.factor(valid_norm_m1[, 1]), positive
+= "1")
+
+# Train k=5
+
+knn_model_k5_m1 <- caret::knn3(TARGET ~ ., data = train_norm_m1, k =
+5) 
+knn_model_k5_m1
+
+# Predict training set
+
+knn_pred_k5_train_m1 <- predict(knn_model_k5_m1, newdata = train_norm_m1[,
+-c(1)], type = "class") 
+# head(knn_pred_k5_train_m1) 
+
+# Evaluate 
+
+confusionMatrix(knn_pred_k5_train_m1, as.factor(train_norm_m1[, 1]), positive
+= "1")
+
+# Predict validation set
+
+knn_pred_k5_valid_m1 <- predict(knn_model_k5_m1, newdata = valid_norm_m1[,
+-c(1)], type = "class") 
+# head(knn_pred_k5_valid_m1) 
+
+# Evaluate
+confusionMatrix(knn_pred_k5_valid_m1, as.factor(valid_norm_m1[, 1]), positive
+= "1")
+
+# Train k=7
+
+knn_model_k7_m1 <- caret::knn3(TARGET ~ ., data = train_norm_m1, k =
+7) 
+knn_model_k7_m1
+
+# Predict training set
+
+knn_pred_k7_train_m1 <- predict(knn_model_k7_m1, newdata = train_norm_m1[,
+-c(1)], type = "class") 
+# head(knn_pred_k7_train_m1) 
+
+# Evaluate 
+
+confusionMatrix(knn_pred_k7_train_m1, as.factor(train_norm_m1[, 1]), positive
+= "1")
+
+# Predict validation set
+
+knn_pred_k7_valid_m1 <- predict(knn_model_k7_m1, newdata = valid_norm_m1[,
+-c(1)], type = "class") 
+# head(knn_pred_k7_valid_m1) 
+
+# Evaluate
+confusionMatrix(knn_pred_k7_valid_m1, as.factor(valid_norm_m1[, 1]), positive
+= "1")
+
+```
+
+# Process and Analysis of Model 1
+
+  For this model, we decided to include 15 dependent variables; the type of loan being requested, car ownership, realty ownership, count of children, total income, total credit, price of goods to be purchased with loan, type of income, marriage status, housing type, age, and amount of time employed. We selected these variables based on what we felt would be most strongly correlated with a client's level of risk- for example, a client with a higher income is likely to be lower risk. We felt that clients who own a car or housing might also be lower risk as they have some assets. We were interested in the impacts of family circumstances on risk level, as perhaps clients with many dependents are higher risk due to their increased expenses, or clients who are married could be lower risk due to presumably being from two-income households. 
+
+  We decided to deal with missing values in the data for this model by simply removing them- this is because null values made up a very small portion of the data (just 27 observations out of 30,000) which would not impact the results of our model significantly. We also decided to load in the new client data so we could organize, factorize, and normalise it along with the corresponding model data frame.  
+  
+  Overall, the accuracy of the k=3 version of this model was quite good- 85% in the training set and 74% for the validation set. The issue with the model, however, was the sensitivity, which is quite low in the validation set, only 13%. The sensitivity measures the true positive rate, meaning that while our model is technically accurate, it is not so good at predicting when clients had difficulty paying back their loans- of all of the high-risk clients, the algorithm was only able to successfully identify them 13% of the time. This is a problem, because this is the prediction we are interested in.  
+  
+  To combat this issue, we tried k values of 5 and 7 as well, but these did not fare much better in terms of accuracy, and actually performed even worse in terms of sensitivity. This told us that for our next model, we should try different dependent variables to predict the clients' risk-level, and also that we are working with an unbalanced data set. An unbalanced data set occurs when the target variable results are very skewed toward one value or category- in this case, the vast majority of clients being low-risk customers. As a result, the algorithm has a hard time learning when clients are high-risk, since there are so few examples of that case relative to the entire set of data. 
+
+# Model 1.1
+
+
+```{r, echo=TRUE}
+
+# Creating Model with Same Variables, but Weighted 
+
+credit_m1_w <- credit_m1
+
+# Factorizing Categorical Variables
+
+# colnames(credit_m1_w)
+# str(credit_m1_w)
+credit_m1_w[, c(1:4, 9:11, 14:15)] <- lapply(credit_m1_w[, c(1:4, 9:11, 14:15)], as.factor)
+
+# Training/Validation Split 
+
+set.seed(666)
+
+train_index_m1_w <- sample(1:nrow(credit_m1_w), 0.7 * nrow(credit_m1_w))
+valid_index_m1_w <- setdiff(1:nrow(credit_m1_w), train_index_m1_w)
+
+train_m1_w <- credit_m1_w[train_index_m1_w, ]
+valid_m1_w <- credit_m1_w[valid_index_m1_w, ]
+
+# nrow(train_m1_w)
+# nrow(valid_m1_w)
+
+# str(train_m1_w)
+# str(valid_m1_w)
+
+
+
+#weighted sampling
+train_rose_m1 <- ROSE(TARGET ~.,
+                      data = train_m1_w, seed = 666)$data
+
+# Defining new customers 
+
+new_custs_m1_w <- new_custs_m1
+# str(new_custs_m1_w)
+# colnames(new_custs_m1_w)
+
+new_custs_m1_w[, c(1:3, 8:10, 13:14)] <- lapply(new_custs_m1_w[, c(1:3, 8:10, 13:14)], as.factor)
+# str(new_custs_m1_w)
+
+
+# Normalising Numerical Variables 
+train_norm_m1_w <- train_rose_m1 
+valid_norm_m1_w <- valid_m1_w
+
+# str(train_norm_m1_w) 
+# colnames(train_norm_m1_w)
+# str(valid_norm_m1_w) 
+# colnames(valid_norm_m1_w)
+
+norm_values_m1_w <- preProcess(train_m1_w[, c(6:8, 12:13)], method = c("center",
+"scale"))
+
+
+# Then normalise the training and validation sets.
+
+train_norm_m1_w[, c(6:8, 12:13)] <- predict(norm_values_m1_w, train_m1_w[, c(6:8, 12:13)])
+
+valid_norm_m1_w[, c(6:8, 12:13)] <- predict(norm_values_m1_w, valid_m1_w[, c(6:8, 12:13)])
+
+# Predicting Normalised Values for the New Record 
+new_custs_norm_m1_w <- predict(norm_values_m1_w, new_custs_m1_w) 
+new_custs_norm_m1_w
+compare_df_cols(valid_m1_w, valid_norm_m1_w, train_m1_w, train_norm_m1_w)
+
+# Train k = 3
+
+knn_model_k3_m1_w <- caret::knn3(TARGET ~ ., data = train_norm_m1_w, k =
+3) 
+knn_model_k3_m1_w
+
+# Predict training set
+
+knn_pred_k3_train_m1_w <- predict(knn_model_k3_m1_w, newdata = train_norm_m1_w[,
+-c(1)], type = "class") 
+# head(knn_pred_k3_train_m1_w)
+
+# Evaluate
+
+confusionMatrix(knn_pred_k3_train_m1_w, as.factor(train_norm_m1_w[, 1]), positive
+= "1")
+
+# Predict validation set
+
+knn_pred_k3_valid_m1_w <- predict(knn_model_k3_m1_w, newdata = valid_norm_m1_w[,
+-c(1)], type = "class") 
+# head(knn_pred_k3_valid_m1_w)
+
+# Evaluate
+
+confusionMatrix(knn_pred_k3_valid_m1_w, as.factor(valid_norm_m1_w[, 1]), positive
+= "1")
+
+# Train k=5
+
+knn_model_k5_m1_w <- caret::knn3(TARGET ~ ., data = train_norm_m1_w, k =
+5) 
+knn_model_k5_m1_w
+
+# Predict training set
+
+knn_pred_k5_train_m1_w <- predict(knn_model_k5_m1_w, newdata = train_norm_m1_w[,
+-c(1)], type = "class") 
+# head(knn_pred_k5_train_m1_w) 
+
+# Evaluate 
+
+confusionMatrix(knn_pred_k5_train_m1_w, as.factor(train_norm_m1_w[, 1]), positive
+= "1")
+
+# Predict validation set
+
+knn_pred_k5_valid_m1_w <- predict(knn_model_k5_m1_w, newdata = valid_norm_m1_w[,
+-c(1)], type = "class") 
+# head(knn_pred_k5_valid_m1_w) 
+
+# Evaluate
+confusionMatrix(knn_pred_k5_valid_m1_w, as.factor(valid_norm_m1_w[, 1]), positive
+= "1")
+
+# Train k=7
+
+knn_model_k7_m1_w <- caret::knn3(TARGET ~ ., data = train_norm_m1_w, k =
+7) 
+knn_model_k7_m1_w
+
+# Predict training set
+
+knn_pred_k7_train_m1_w <- predict(knn_model_k7_m1_w, newdata = train_norm_m1_w[,
+-c(1)], type = "class") 
+# head(knn_pred_k7_train_m1_w) 
+
+# Evaluate 
+
+confusionMatrix(knn_pred_k7_train_m1_w, as.factor(train_norm_m1_w[, 1]), positive
+= "1")
+
+# Predict validation set
+
+knn_pred_k7_valid_m1_w <- predict(knn_model_k7_m1_w, newdata = valid_norm_m1_w[,
+-c(1)], type = "class") 
+# head(knn_pred_k7_valid_m1_w) 
+
+# Evaluate
+confusionMatrix(knn_pred_k7_valid_m1_w, as.factor(valid_norm_m1_w[, 1]), positive
+= "1")
+
+```
+
+# Process and Analysis of Model 1.1
+
+  The process for creating this model was exactly the same as our initial model, but with weighted training data, and a slightly larger subset of the data being devoted to the training set in an attempt to reduce over-fitting in our model. Over-fitting occurs when the algorithm is tailored so specifically to the data it was trained with, that it is less accurate when it is given new information as a result- we decided to increase the scope of the training data in hopes of making the algorithm better at predicting new records. 
+  
+  This version of the model improved the sensitivity, which is good, but it decreased the overall accuracy of the model. The model with the highest overall accuracy and sensitivity was the k=7 version of the model, which had an accuracy of 54% and a sensitivity of 48%- this means that while the algorithm was technically worse at accurately predicting risk among the clients overall, it was much better at accurately identifying the high-risk clients (48% of the time as opposed to just 13%). 
+  
+  Hoping to improve the accuracy even further, we decided to try out different variables in our algorithm. 
+
+# Model 2
+
+```{r, echo=TRUE}
+
+# New Variables, weighted 
+
+credit_m2 <- credit[ , c(3, 6:10, 18)]
+
+credit_m2 <- credit_m2[complete.cases(credit_m2),]
+
+# str(credit_m2)
+
+# Factorizing 
+credit_m2[, c(1:3)] <- lapply(credit_m2[, c(1:3)], as.factor)
+
+# Training Validation Split 
+
+set.seed(666)
+
+train_index_m2 <- sample(1:nrow(credit_m2), 0.7 * nrow(credit_m2))
+valid_index_m2 <- setdiff(1:nrow(credit_m2), train_index_m2)
+
+train_m2 <- credit_m2[train_index_m2, ]
+valid_m2 <- credit_m2[valid_index_m2, ]
+
+# nrow(train_m2)
+# nrow(valid_m2)
+
+# str(train_m2)
+# str(valid_m2)
+
+# Defining New Customers 
+
+new_custs_m2 <- new_custs[ , c(5:9, 17)]
+# str(new_custs_m2)
+# colnames(new_custs_m2)
+
+new_custs_m2[, c(1:2)] <- lapply(new_custs_m2[, c(1:2)], as.factor)
+#str(new_custs)
+
+#weighted sampling
+train_rose_m2 <- ROSE(TARGET ~.,
+                      data = train_m2, seed = 666)$data
+
+# Normalisation, only for numerical variables
+
+train_norm_m2 <- train_rose_m2 
+valid_norm_m2 <- valid_m2
+
+# str(train_norm_m2) 
+# colnames(train_norm_m2)
+# str(valid_norm_m2) 
+# colnames(valid_norm_m2)
+
+norm_values_m2 <- preProcess(train_m2[, c(4:7)], method = c("center",
+"scale"))
+
+# Then normalise the training and validation sets.
+
+train_norm_m2[, c(4:7)] <- predict(norm_values_m2, train_m2[, c(4:7)])
+
+valid_norm_m2[, c(4:7)] <- predict(norm_values_m2, valid_m2[, c(4:7)])
+
+#predicting normalized values for the new record 
+new_custs_norm_m2 <- predict(norm_values_m2, new_custs_m2) 
+new_custs_norm_m2
+compare_df_cols(valid_m2, valid_norm_m2, train_m2, train_norm_m2)
+
+# Train k=3
+
+knn_model_k3_m2 <- caret::knn3(TARGET ~ ., data = train_norm_m2, k =
+3) 
+knn_model_k3_m2
+
+# Predict training set
+
+knn_pred_k3_train_m2 <- predict(knn_model_k3_m2, newdata = train_norm_m2[,
+-c(1)], type = "class") 
+# head(knn_pred_k3_train_m2)
+
+# Evaluate
+
+confusionMatrix(knn_pred_k3_train_m2, as.factor(train_norm_m2[, 1]), positive
+= "1")
+# Predict validation set 
+knn_pred_k3_valid_m2 <- predict(knn_model_k3_m2, newdata = valid_norm_m2[,
+-c(1)], type = "class") 
+# head(knn_pred_k3_valid_m2)
+
+# Evaluate
+
+confusionMatrix(knn_pred_k3_valid_m2, as.factor(valid_norm_m2[, 1]), positive
+= "1")
+
+# Train k = 5
+
+knn_model_k5_m2 <- caret::knn3(TARGET ~ ., data = train_norm_m2, k =
+5) 
+knn_model_k5_m2
+
+# Predict training set
+
+knn_pred_k5_train_m2 <- predict(knn_model_k5_m2, newdata = train_norm_m2[,
+-c(1)], type = "class") 
+# head(knn_pred_k5_train_m2) 
+
+# Evaluate 
+
+confusionMatrix(knn_pred_k5_train_m2, as.factor(train_norm_m2[, 1]), positive
+= "1")
+
+# Predict validation set
+
+knn_pred_k5_valid_m2 <- predict(knn_model_k5_m2, newdata = valid_norm_m2[,
+-c(1)], type = "class") 
+# head(knn_pred_k5_valid_m2) 
+
+# Evaluate
+confusionMatrix(knn_pred_k5_valid_m2, as.factor(valid_norm_m2[, 1]), positive
+= "1")
+
+# Train k=7
+
+knn_model_k7_m2 <- caret::knn3(TARGET ~ ., data = train_norm_m2, k =
+7) 
+knn_model_k7_m2
+
+# Predict training set
+
+knn_pred_k7_train_m2 <- predict(knn_model_k7_m2, newdata = train_norm_m2[,
+-c(1)], type = "class") 
+# head(knn_pred_k7_train_m2) 
+
+# Evaluate 
+
+confusionMatrix(knn_pred_k7_train_m2, as.factor(train_norm_m2[, 1]), positive
+= "1")
+
+# Predict validation set
+
+knn_pred_k7_valid_m2 <- predict(knn_model_k7_m2, newdata = valid_norm_m2[,
+-c(1)], type = "class") 
+# head(knn_pred_k7_valid_m2) 
+
+# Evaluate
+confusionMatrix(knn_pred_k7_valid_m2, as.factor(valid_norm_m2[, 1]), positive
+= "1")
+```
+
+# Process and Analysis of Model 2
+  For this model, we decided to select different variables, but continue with the same process of weighted training data. The variables we considered in Model 2 were car ownership, realty ownership, children, income, credit, and age. Our reasoning for selecting these was similar in our first model, in that based on domain knowledge, we considered these to be likely predictors of a client's ability to afford their loan. For example, an older client might be lower-risk as they have accumulated more assets throughout their life, and a client who has been employed for longer may have more resources saved up that would help them to repay their loan. 
+  
+  Overall, none of the k values tried for this model significantly impacted our results from version 1.1 of the model. 
+
+# Model Selection 
+
+  Based on the outcomes of all of the models, the model we would choose is the weighted version of our first model, called 'Model 1.1' with k = 3 in this document. Model 1.1 is more applicable than Model 1 because it predicts late loan repayments and on time payments. Model 1 does not use weighted data so it is barely trained to predict late repayments. Model 2 has the lower accuracy even though it uses weighted data. 
+# Predicting New Outcome
+
+```{r, echo=TRUE}
+
+new_cust_predict <- predict(knn_model_k7_m1_w, newdata = new_custs_norm_m1_w, type
+= "class")
+
+new_cust_predict
+
+```
+# Analysis 
+
+  These results tell us that of these 5 new clients, 2 are predicted to be at a high financial risk for not repaying their loans to Stark Industries.  
+  
+  
+  
+# Summary 
+
+  Improving the sensitivity of our model was difficult- this is because the vast majority of clients in the available data were not high-risk, making it difficult to train the algorithm to recognize when someone would be high-risk. Acknowledging this limitation is important, as in this case, 'accuracy' alone is not as significant as being able to successfully identify when a client is at a higher risk of being unable to pay back their loan, which is what Stark Industries is ultimately interested in learning. 
+  
+  Sometimes, there is a trade-off between the overall accuracy of the model, and it's true-positive rate- deciding which is more important for the model depends on the context of the scenario, and the specific objective of the analyst(s). Acknowledging the limitations of a model is very important, as it determines how the company will use the model. When Stark Industries uses our algorithm to make predictions about the risk-level of their potential clients, they should be aware that of the clients identified as high-risk, there is a 48% liklihood that the model will identify them- Stark Industries could use this as a supplemental tool, in that case, to flag these individuals in their system and take special care to check in with these clients, for example, but should not simply exclude them from loan eligibility altogether based on their predicted risk-level alone. Stark Industries could use this tool as a helpful initial screening process- this would improve their efficiency in sorting through potential clients, and could prevent the harmful effects of personal bias on the part of bank employees in their decision to accept or deny loans to some degree.  
